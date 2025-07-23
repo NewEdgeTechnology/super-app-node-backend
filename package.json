@@ -1,0 +1,19 @@
+{
+  "name": "new-edge",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:registration": "cd driver && npm run dev",
+    "start:location": "cd map_and_location_services && npm run dev",
+    "start:ride": "cd ride_management && npm run dev",
+    "start:all": "concurrently \"npm run start:registration\" \"npm run start:location\" \"npm run start:ride\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}

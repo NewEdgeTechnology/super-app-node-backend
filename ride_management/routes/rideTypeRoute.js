@@ -9,9 +9,11 @@ router.post("/", rideTypeController.createRideType);
 router.put("/:id", rideTypeController.updateRideType);
 
 // Get all ride types
-router.get("/", rideTypeController.getAllRideTypes);
+router.get("/getall", rideTypeController.getAllRideTypes);
 
 // Get one ride type by id
 router.get("/:id", rideTypeController.getRideTypeById);
+
+router.delete("/:ride_type_id", rideTypeController.deleteRideType);
 
 module.exports = router;

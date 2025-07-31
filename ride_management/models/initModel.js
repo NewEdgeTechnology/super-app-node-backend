@@ -23,6 +23,7 @@ const tables = [
         ride_type_id BIGINT UNSIGNED NOT NULL,
         status ENUM('pending','accepted','in_progress','completed','cancelled') DEFAULT 'pending',
         fare_estimate INT,
+        no_of_passenger INT,
         pickup_loc POINT NOT NULL,
         dropoff_loc POINT NOT NULL,
         pickup_address VARCHAR(255),

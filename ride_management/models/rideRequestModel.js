@@ -12,17 +12,18 @@ exports.createRideRequest = async (rideRequestData) => {
     dropoff_lng,
     pickup_address,
     dropoff_address,
+    no_of_passenger,
   } = rideRequestData;
 
   const sql = `
     INSERT INTO ride_requests (
       rider_id, ride_type_id, fare_estimate,
       pickup_loc, dropoff_loc,
-      pickup_address, dropoff_address
+      pickup_address, dropoff_address,no_of_passenger
     ) VALUES (
       ?, ?, ?,
       ST_GeomFromText(?), ST_GeomFromText(?),
-      ?, ?
+      ?, ?, ?
     )
   `;
 
@@ -34,6 +35,7 @@ exports.createRideRequest = async (rideRequestData) => {
     `POINT(${dropoff_lat} ${dropoff_lng})`,
     pickup_address,
     dropoff_address,
+    no_of_passenger,
   ]);
 
   return result.insertId;

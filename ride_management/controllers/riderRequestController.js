@@ -10,7 +10,6 @@ exports.requestRide = async (req, res) => {
   try {
     console.log("▶️ Incoming ride request payload");
 
-    // Validate input
     const schema = Joi.object({
       rider_id: Joi.number().required(),
       pickup_lat: Joi.number().required(),
@@ -20,11 +19,12 @@ exports.requestRide = async (req, res) => {
       pickup_address: Joi.string().required(),
       dropoff_address: Joi.string().required(),
       ride_type: Joi.string()
-        .valid("standard", "premium", "group", "economy")
+        // .valid("standard", "premium", "group", "economy")
         .required(),
       payment_method: Joi.string().valid("cash", "card", "grabpay").required(),
       distance_meters: Joi.number().required(),
       duration_seconds: Joi.number().required(),
+      no_of_passenger: Joi.number().min(1).required(),
       socketId: Joi.string().optional(),
     });
 
@@ -46,10 +46,10 @@ exports.requestRide = async (req, res) => {
       payment_method,
       distance_meters,
       duration_seconds,
+      no_of_passenger,
       socketId,
     } = value;
 
-    // Get ride types from Redis or DB
     let rideTypes = [];
     try {
       const cachedRideTypes = await redis.get("ride_types");
@@ -67,7 +67,6 @@ exports.requestRide = async (req, res) => {
       rideTypes = rows;
     }
 
-    // Find matching ride type
     const rideType = rideTypes.find((type) => type.name === ride_type);
     if (!rideType) {
       return res.status(400).json({ error: "Invalid ride type selected" });
@@ -90,6 +89,7 @@ exports.requestRide = async (req, res) => {
       dropoff_lng,
       pickup_address,
       dropoff_address,
+      no_of_passenger,
     });
 
     console.log("✅ Ride request saved with ID:", ride_request_id);
@@ -104,18 +104,25 @@ exports.requestRide = async (req, res) => {
 
     try {
       if (dropoff_address) {
-        await redis.zincrby("popular:dropoff_locations", 1, dropoff_address);
-        const ttl = await redis.ttl("popular:dropoff_locations");
-        if (ttl === -1) {
-          await redis.expire("popular:dropoff_locations", 86400);
-        }
+        await redis.zincrby("popular:dropoff", 1, dropoff_address);
+        const dropTTL = await redis.ttl("popular:dropoff");
+        if (dropTTL === -1) await redis.expire("popular:dropoff", 86400);
         console.log("📍 Dropoff location tracked in Redis");
       }
-    } catch (dropoffErr) {
-      console.warn("⚠️ Could not save dropoff to Redis:", dropoffErr.message);
+
+      if (pickup_address) {
+        await redis.zincrby("popular:pickup", 1, pickup_address);
+        const pickTTL = await redis.ttl("popular:pickup");
+        if (pickTTL === -1) await redis.expire("popular:pickup", 86400);
+        console.log("📍 Pickup location tracked in Redis");
+      }
+    } catch (redisLocationErr) {
+      console.warn(
+        "⚠️ Could not save pickup/dropoff to Redis:",
+        redisLocationErr.message
+      );
     }
 
-    // 🔍 Get device_id from user_devices
     let device_id = null;
     try {
       const [rows] = await db.query(
@@ -130,11 +137,15 @@ exports.requestRide = async (req, res) => {
       console.warn("⚠️ Failed to fetch device_id:", deviceErr.message);
     }
 
-    const onlineDriversCount = await Driver.countDocuments({ is_online: true });
+    const totalDrivers = await Driver.countDocuments({
+      is_online: true,
+      available_capacity: { $gte: no_of_passenger, $gt: 0 },
+    });
 
-    if (onlineDriversCount === 0) {
+    if (totalDrivers === 0) {
       const noDriverPayload = {
-        message: "Ride request created but no drivers currently online",
+        message:
+          "Ride request created but no drivers currently online or suitable",
         request_id: ride_request_id,
         fare_estimate,
         nearest_driver: null,
@@ -149,7 +160,7 @@ exports.requestRide = async (req, res) => {
       return res.status(201).json(noDriverPayload);
     }
 
-    // Search for drivers within 5 km radius
+    // 🔍 Search nearest suitable driver
     const maxRadius = 5000;
     let radius = 1000;
     let nearestDriver = null;
@@ -157,6 +168,7 @@ exports.requestRide = async (req, res) => {
     while (radius <= maxRadius && !nearestDriver) {
       nearestDriver = await Driver.findOne({
         is_online: true,
+        available_capacity: { $gte: no_of_passenger, $gt: 0 },
         current_location: {
           $near: {
             $geometry: {
@@ -167,15 +179,12 @@ exports.requestRide = async (req, res) => {
           },
         },
       }).lean();
-
-      if (!nearestDriver) {
-        radius += 1000;
-      }
+      if (!nearestDriver) radius += 1000;
     }
 
     if (!nearestDriver) {
       const noDriverPayload = {
-        message: "No drivers available now, please try again later",
+        message: "No suitable drivers available now, please try again later",
         request_id: ride_request_id,
         fare_estimate,
         nearest_driver: null,
@@ -190,7 +199,7 @@ exports.requestRide = async (req, res) => {
       return res.status(200).json(noDriverPayload);
     }
 
-    console.log("🚗 Nearest driver:", nearestDriver.user_id);
+    console.log("🚗 Nearest suitable driver:", nearestDriver.user_id);
 
     const responsePayload = {
       message: "Ride request and payment created successfully",
@@ -232,6 +241,28 @@ exports.getRiderRequestById = async (req, res) => {
     res.status(200).json(request);
   } catch (error) {
     console.error("Error fetching ride request:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+exports.getPopularLocations = async (req, res) => {
+  try {
+    const pickupKey = "popular:pickup_locations";
+    const dropoffKey = "popular:dropoff_locations";
+
+    // Get all members with scores reversed (top first)
+    const pickupData = await redis.zrange(pickupKey, 0, -1, { rev: true });
+    const dropoffData = await redis.zrange(dropoffKey, 0, -1, { rev: true });
+
+    // Slice to top 3 if more than 3, else all
+    const top_pickup_locations =
+      pickupData.length > 3 ? pickupData.slice(0, 3) : pickupData;
+    const top_dropoff_locations =
+      dropoffData.length > 3 ? dropoffData.slice(0, 3) : dropoffData;
+
+    res.status(200).json({ top_pickup_locations, top_dropoff_locations });
+  } catch (error) {
+    console.error("🚨 Redis Popular Location Error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

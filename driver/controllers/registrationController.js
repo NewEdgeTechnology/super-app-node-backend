@@ -10,6 +10,12 @@ const registerUser = async (req, res) => {
 
   try {
     const { user, driver, documents, vehicle, deviceID } = req.body;
+
+    // 0. Check if deviceID is present, else reject request immediately
+    if (!deviceID) {
+      return res.status(400).json({ error: "Device ID is required" });
+    }
+
     await connection.beginTransaction();
 
     const hashedPassword = await bcrypt.hash(user.password, 10);
@@ -22,14 +28,12 @@ const registerUser = async (req, res) => {
     user_id = userResult.insertId;
 
     // 2. Insert device info based on role
-    if (deviceID) {
-      const deviceTable =
-        user.role === "driver" ? "driver_devices" : "user_devices";
-      await connection.query(
-        `INSERT INTO ${deviceTable} (user_id, device_id, updated_at) VALUES (?, ?, NOW())`,
-        [user_id, deviceID]
-      );
-    }
+    const deviceTable =
+      user.role === "driver" ? "driver_devices" : "user_devices";
+    await connection.query(
+      `INSERT INTO ${deviceTable} (user_id, device_id, updated_at) VALUES (?, ?, NOW())`,
+      [user_id, deviceID]
+    );
 
     // 3. If driver, insert driver-related tables
     if (user.role === "driver") {
@@ -48,15 +52,19 @@ const registerUser = async (req, res) => {
 
       const driver_id = driverResult.insertId;
 
+      // Insert into MongoDB (DriverMongo)
       await DriverMongo.create({
         user_id,
         license_number: driver.license_number,
         license_expiry: driver.license_expiry,
         current_location: driver.current_location,
         current_location_updated_at: new Date(),
-        device_id: deviceID || null,
+        device_id: deviceID,
+        actual_capacity: vehicle.capacity,
+        available_capacity: vehicle.capacity,
       });
 
+      // Insert driver documents if any
       if (documents?.length > 0) {
         const docValues = documents.map((d) => [
           driver_id,
@@ -71,9 +79,12 @@ const registerUser = async (req, res) => {
         );
       }
 
+      // Insert vehicle into MySQL
       if (vehicle) {
         await connection.query(
-          `INSERT INTO driver_vehicles (driver_id, make, model, year, color, license_plate, vehicle_type, capacity, features, insurance_expiry) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO driver_vehicles (
+            driver_id, make, model, year, color, license_plate, vehicle_type, actual_capacity, available_capacity, features, insurance_expiry
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             driver_id,
             vehicle.make,
@@ -82,6 +93,7 @@ const registerUser = async (req, res) => {
             vehicle.color,
             vehicle.license_plate,
             vehicle.vehicle_type,
+            vehicle.capacity,
             vehicle.capacity,
             vehicle.features ? vehicle.features.join(",") : null,
             vehicle.insurance_expiry,
@@ -102,6 +114,7 @@ const registerUser = async (req, res) => {
   } catch (err) {
     await connection.rollback();
     console.error("Registration error:", err);
+    // error handling as before
     let errorMessage = "Registration failed";
 
     if (err.code === "ER_DUP_ENTRY") {
@@ -173,8 +186,8 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ error: "Incorrect password" });
     }
 
-    // 2. Role check
-    if (user.role !== role) {
+    // 2. Role check: allow admin regardless of requested role
+    if (user.role !== "admin" && user.role !== role) {
       return res
         .status(403)
         .json({ error: `Role mismatch. Expected: ${user.role}` });

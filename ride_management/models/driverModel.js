@@ -1,4 +1,3 @@
-// models/driverModel.js
 const mongoose = require("mongoose");
 
 const driverSchema = new mongoose.Schema(
@@ -54,6 +53,20 @@ const driverSchema = new mongoose.Schema(
       },
     },
     current_location_updated_at: Date,
+
+    // ✅ New fields
+    device_id: {
+      type: String,
+      default: null,
+    },
+    actual_capacity: {
+      type: Number,
+      default: 4, // assuming default seat capacity is 4
+    },
+    available_capacity: {
+      type: Number,
+      default: 4, // assuming default seat capacity is 4
+    },
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },

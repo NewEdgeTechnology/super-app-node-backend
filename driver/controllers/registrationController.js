@@ -6,12 +6,15 @@ const jwt = require("jsonwebtoken");
 // ✅ Register controller
 const registerUser = async (req, res) => {
   let user_id = null;
+  let driver_id = null;
   const connection = await pool.getConnection();
 
   try {
-    const { user, driver, documents, vehicle, deviceID } = req.body;
-
+    const { user, driver, documents, vehicle } = req.body;
+    console.log(user);
     // 0. Check if deviceID is present, else reject request immediately
+    const deviceID = req.body.deviceID;
+
     if (!deviceID) {
       return res.status(400).json({ error: "Device ID is required" });
     }
@@ -50,11 +53,11 @@ const registerUser = async (req, res) => {
         ]
       );
 
-      const driver_id = driverResult.insertId;
+      driver_id = driverResult.insertId;
 
       // Insert into MongoDB (DriverMongo)
       await DriverMongo.create({
-        user_id,
+        user_id, // Ensures matching SQL-Mongo mapping
         license_number: driver.license_number,
         license_expiry: driver.license_expiry,
         current_location: driver.current_location,
@@ -114,7 +117,6 @@ const registerUser = async (req, res) => {
   } catch (err) {
     await connection.rollback();
     console.error("Registration error:", err);
-    // error handling as before
     let errorMessage = "Registration failed";
 
     if (err.code === "ER_DUP_ENTRY") {
@@ -180,20 +182,17 @@ const loginUser = async (req, res) => {
 
     const user = rows[0];
 
-    // 1. Password check
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({ error: "Incorrect password" });
     }
 
-    // 2. Role check: allow admin regardless of requested role
     if (user.role !== "admin" && user.role !== role) {
       return res
         .status(403)
         .json({ error: `Role mismatch. Expected: ${user.role}` });
     }
 
-    // 3. JWT Token creation
     const payload = {
       user_id: user.user_id,
       role: user.role,

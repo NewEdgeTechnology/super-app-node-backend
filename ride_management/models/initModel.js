@@ -91,6 +91,22 @@ const tables = [
       );
     `,
   },
+  {
+    name: "accepted_rides",
+    sql: `
+      CREATE TABLE accepted_rides (
+        accept_id BIGINT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+        ride_request_id BIGINT UNSIGNED NOT NULL,
+        driver_id BIGINT UNSIGNED NOT NULL,
+        passenger_id BIGINT UNSIGNED NOT NULL,
+        status ENUM('accepted', 'rejected', 'cancelled', 'completed') DEFAULT 'accepted',
+        accepted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (ride_request_id) REFERENCES ride_requests(ride_request_id),
+        FOREIGN KEY (driver_id) REFERENCES drivers(driver_id),
+        FOREIGN KEY (passenger_id) REFERENCES users(user_id)
+      );
+    `,
+  },
 ];
 
 const initRideTables = async () => {
@@ -107,8 +123,9 @@ const initRideTables = async () => {
       console.error(
         `❌ Error processing table '${table.name}': ${err.message}`
       );
-      // Stop processing further tables if dependency failed
-      if (table.name === "ride_requests" || table.name === "ride_types") {
+      if (
+        ["ride_requests", "ride_types", "accepted_rides"].includes(table.name)
+      ) {
         break;
       }
     }

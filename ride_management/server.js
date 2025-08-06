@@ -7,6 +7,7 @@ require("dotenv").config();
 const rideTypeRoutes = require("./routes/rideTypeRoute");
 const riderRequestRoutes = require("./routes/riderRequestRoute");
 const popularLocationRoute = require("./routes/popularLocationRoute");
+const rideAcceptedRoute = require("./routes/rideAcceptedRoute");
 
 const initRideTables = require("./models/initModel");
 const connectMongo = require("./config/mongo");
@@ -18,49 +19,55 @@ const db = require("./config/db");
 const app = express();
 const PORT = process.env.PORT || 7000;
 
-// Setup CORS
+// ✅ CORS setup: Allow all origins (any device, any IP)
 const corsOptions = {
-  origin: "*",
+  origin: "*", // Allow all origins
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: false,
+  credentials: false, // Set to true only if you are using cookies or auth headers
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Logging
+// ✅ Logging middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// API routes
+// ✅ API routes
 app.use("/api", popularLocationRoute);
 app.use("/api/ridetypes", rideTypeRoutes);
 app.use("/api/rides", riderRequestRoutes);
+app.use("/api/riderequest", rideAcceptedRoute);
 
-// Create HTTP + Socket Server
+// ✅ Create HTTP + Socket.IO server
 const server = http.createServer(app);
+
+// ✅ Socket.IO setup with open CORS policy
 const io = new Server(server, {
   cors: {
-    origin: "http://127.0.0.1:5501",
+    origin: "*", // Allow all origins
     methods: ["GET", "POST"],
+    credentials: false,
   },
 });
 
-// Make io accessible via app.locals
+// Make io accessible in your controllers
 app.locals.io = io;
 
-// Load custom socket handlers from socket/index.js
-require("./socket")(io); // this looks for socket/index.js and passes io
+// ✅ Load your socket handlers
+require("./socket")(io);
 
-// Main Startup Function
+// ✅ Main Startup Function
 async function startServer() {
   try {
     await connectMongo(); // Connect to MongoDB
     await initRideTables(); // Setup MySQL tables if not exist
     await warmupRideTypesIfNeeded(); // Warm up ride types if needed
 
-    server.listen(PORT, () => {
+    // ✅ Bind to 0.0.0.0 so it's accessible from other devices on LAN/WAN
+    server.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Server API running at: http://localhost:${PORT}`);
       console.log(`📡 Socket.IO server listening on port ${PORT}`);
     });

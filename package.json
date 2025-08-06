@@ -2,7 +2,7 @@
   "name": "new-edge",
   "version": "1.0.0",
   "scripts": {
-    "install:all": "cd driver && npm install && cd ../map_and_location_services && npm install && cd ../ride_management && npm install && cd ..",
+    "install:all": "npm --prefix driver install && npm --prefix map_and_location_services install && npm --prefix ride_management install",
     "start:registration": "cd driver && npm run dev",
     "start:location": "cd map_and_location_services && npm run dev",
     "start:ride": "cd ride_management && npm run dev",

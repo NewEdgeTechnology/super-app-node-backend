@@ -419,6 +419,7 @@ exports.requestRide = async (req, res) => {
         name: nearestDriver.name,
         phone: nearestDriver.phone,
         location: nearestDriver.current_location,
+        device_id,
       },
     };
 

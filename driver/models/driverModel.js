@@ -16,6 +16,9 @@ const driverSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    vehicle_type: {
+      type: String,
+    },
     is_approved: {
       type: Boolean,
       default: false,

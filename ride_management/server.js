@@ -8,7 +8,7 @@ const rideTypeRoutes = require("./routes/rideTypeRoute");
 const riderRequestRoutes = require("./routes/riderRequestRoute");
 const popularLocationRoute = require("./routes/popularLocationRoute");
 const rideAcceptedRoute = require("./routes/rideAcceptedRoute");
-
+const notificationRoutes = require("./routes/notificationRoute");
 const initRideTables = require("./models/initModel");
 const connectMongo = require("./config/mongo");
 const warmupRideTypesIfNeeded = require("./scripts/warmupRideTypes");
@@ -40,6 +40,7 @@ app.use("/api", popularLocationRoute);
 app.use("/api/ridetypes", rideTypeRoutes);
 app.use("/api/rides", riderRequestRoutes);
 app.use("/api/riderequest", rideAcceptedRoute);
+app.use("/api/notifications", notificationRoutes);
 
 // ✅ Create HTTP + Socket.IO server
 const server = http.createServer(app);

@@ -13,7 +13,7 @@ const registerUser = async (req, res) => {
     const { user, driver, documents, vehicle } = req.body;
     console.log(user);
     // 0. Check if deviceID is present, else reject request immediately
-    const deviceID = req.body.deviceID;
+    const deviceID = driver?.device_id || req.body.deviceID;
 
     if (!deviceID) {
       return res.status(400).json({ error: "Device ID is required" });
@@ -65,6 +65,7 @@ const registerUser = async (req, res) => {
         device_id: deviceID,
         actual_capacity: vehicle.capacity,
         available_capacity: vehicle.capacity,
+        vehicle_type: vehicle.vehicle_type,
       });
 
       // Insert driver documents if any

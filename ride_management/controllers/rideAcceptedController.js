@@ -1,5 +1,6 @@
 const db = require("../config/db"); // MySQL connection pool
 const Driver = require("../models/driverModel"); // MongoDB model
+const rideAcceptedModel = require("../models/rideAcceptModel");
 
 // exports.acceptRide = async (req, res) => {
 //   const { ride_request_id, passenger_id, driver_user_id } = req.body; // driver_user_id is the SQL & Mongo user_id
@@ -225,5 +226,24 @@ exports.acceptRide = async (req, res) => {
       message: "Error accepting ride",
       error: error.message,
     });
+  }
+};
+
+exports.getAcceptedRideByRiderId = async (req, res) => {
+  const { rider_id } = req.params;
+
+  try {
+    const request = await rideAcceptedModel.getAcceptedRideByRiderId(rider_id);
+
+    if (!request) {
+      return res.status(404).json({
+        message: "Ride Accepted not found for the rider with ID " + rider_id,
+      });
+    }
+
+    return res.status(200).json(request);
+  } catch (err) {
+    console.error("Error fetching ride request:", err);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

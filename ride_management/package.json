@@ -21,6 +21,7 @@
     "joi": "^17.13.3",
     "mongoose": "^8.16.4",
     "mysql2": "^3.14.2",
+    "new-edge": "file:..",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {

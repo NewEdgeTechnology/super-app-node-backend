@@ -72,3 +72,11 @@ exports.getRiderRequestById = async (request_id) => {
   );
   return result[0]; // Return a single object
 };
+exports.getRiderRequestByRiderId = async (rider_id) => {
+  const [result] = await db.query(
+    "SELECT * FROM ride_requests WHERE rider_id = ?",
+    [rider_id]
+  );
+  // console.log(result);
+  return result;
+};

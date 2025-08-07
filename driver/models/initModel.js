@@ -100,7 +100,7 @@ const tables = [
         year SMALLINT UNSIGNED NOT NULL,
         color VARCHAR(30) NOT NULL,
         license_plate VARCHAR(20) COLLATE utf8mb4_bin UNIQUE NOT NULL,
-        vehicle_type ENUM('standard','economy', 'premium', 'xl', 'luxury', 'suv') NOT NULL,
+        vehicle_type VARCHAR(20) NOT NULL,
         is_approved TINYINT(1) DEFAULT 0,
           actual_capacity INT UNSIGNED DEFAULT 0,
         available_capacity INT UNSIGNED DEFAULT 0,
@@ -140,6 +140,22 @@ const tables = [
         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
         UNIQUE KEY unique_driver_device (user_id, device_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `,
+  },
+  {
+    name: "notification",
+    sql: `
+     CREATE TABLE notifications (
+        id           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        user_id      BIGINT UNSIGNED NOT NULL,
+        type         VARCHAR(50) NOT NULL,          
+        title        VARCHAR(100) NOT NULL,
+        message      TEXT NOT NULL,
+        data         JSON DEFAULT NULL,            
+        status       ENUM('unread','read') DEFAULT 'unread',
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id)
+    );
     `,
   },
 ];

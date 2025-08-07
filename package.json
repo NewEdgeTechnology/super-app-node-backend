@@ -6,7 +6,7 @@
     "start:registration": "cd driver && npm run dev",
     "start:location": "cd map_and_location_services && npm run dev",
     "start:ride": "cd ride_management && npm run dev",
-    "start:all": "npm run install:all && concurrently \"npm run start:registration\" \"npm run start:location\" \"npm run start:ride\""
+    "start": "npm run install:all && concurrently \"npm run start:registration\" \"npm run start:location\" \"npm run start:ride\""
   },
   "devDependencies": {
     "concurrently": "^9.2.0"
